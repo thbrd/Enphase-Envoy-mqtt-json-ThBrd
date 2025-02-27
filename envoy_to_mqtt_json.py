@@ -301,7 +301,7 @@ def scrape_stream_production():
                     json_string = json.dumps(stream.json())
                     client.publish(topic= MQTT_TOPIC , payload= json_string, qos=0 )
                     if USE_FREEDS: 
-                        json_string_freeds = json.dumps(round(stream.json()['production'][0]['wNow']))
+                        json_string_freeds = json.dumps(round(stream.json()['production'][1]['wNow']))
                         client.publish(topic= MQTT_TOPIC_FREEDS , payload= json_string_freeds, qos=0 )
                     time.sleep(1)
                 else:
