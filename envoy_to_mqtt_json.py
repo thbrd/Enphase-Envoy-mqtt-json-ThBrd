@@ -280,62 +280,34 @@ def emupwGetMobilePasswd(serialNumber,userName,realm=None):
             password += cc
     return password
 
-def scrape_stream_meters():
+def scrape_stream_production():
     global ENVOY_TOKEN
-    ENVOY_TOKEN = token_gen(ENVOY_TOKEN)
-
+    ENVOY_TOKEN=token_gen(ENVOY_TOKEN)
     while True:
         try:
-            url = 'https://%s/ivp/meters/readings' % ENVOY_HOST
-            if DEBUG: print(dt_string, 'Url:', url)
-
+            url = 'http://%s/production.json' % ENVOY_HOST
             headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
             stream = requests.get(url, timeout=5, verify=False, headers=headers)
-            
             if stream.status_code == 401:
-                print(dt_string, 'Failed to authenticate, generating new token')
-                ENVOY_TOKEN = token_gen(None)
+                print(dt_string,'Failed to autenticate', stream, ' generating new token')
+                ENVOY_TOKEN=token_gen(None)
                 headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
                 stream = requests.get(url, timeout=5, verify=False, headers=headers)
-            
             elif stream.status_code != 200:
-                print(dt_string, 'Failed to connect to Envoy:', stream.status_code)
-            
+                print(dt_string,'Failed connect to Envoy got ', stream)
             else:
                 if is_json_valid(stream.content):
-                    json_response = stream.json()
-                    if DEBUG: print(dt_string, 'Json Response:', json_response)
-
-                    # **Controleer of er minstens 2 elementen zijn in de lijst**
-                    if isinstance(json_response, list) and len(json_response) > 1:
-                        if "activePower" in json_response[1]:
-                            json_string_freeds = json.dumps(round(json_response[1]["activePower"]))
-                            client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
-                            if DEBUG: print(dt_string, 'FREEDS JSON published:', json_string_freeds)
-                        else:
-                            print(dt_string, "activePower ontbreekt in JSON-response[1]")
-                    else:
-                        print(dt_string, "Onvoldoende items in JSON-response, overschakelen naar production")
-
-                        # **Fallback naar Production JSON als Meters JSON faalt**
-                        if "production" in json_response and len(json_response["production"]) > 0:
-                            if "wNow" in json_response["production"][0]:
-                                json_string_freeds = json.dumps(round(json_response["production"][0]["wNow"]))
-                                client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
-                                if DEBUG: print(dt_string, 'Fallback naar Production JSON published:', json_string_freeds)
-
-                    # Publiceer volledige JSON zoals origineel
-                    json_string = json.dumps(json_response)
-                    client.publish(topic=MQTT_TOPIC, payload=json_string, qos=0)
-
+                    #print(dt_string, 'Json Response:', stream.json())
+                    json_string = json.dumps(stream.json())
+                    client.publish(topic= MQTT_TOPIC , payload= json_string, qos=0 )
+                    if USE_FREEDS: 
+                        json_string_freeds = json.dumps(round(stream.json()['production'][0]['wNow']))
+                        client.publish(topic= MQTT_TOPIC_FREEDS , payload= json_string_freeds, qos=0 )
                     time.sleep(1)
                 else:
-                    print(dt_string, 'Invalid JSON Response:', stream.content)
-
+                    print(dt_string, 'Invalid Json Response:', stream.content)
         except requests.exceptions.RequestException as e:
-            print(dt_string, 'Exception fetching stream data:', e)
-
-
+            print(dt_string, ' Exception fetching stream data: %s' % e)
 
 def scrape_stream_livedata():
     global ENVOY_TOKEN
