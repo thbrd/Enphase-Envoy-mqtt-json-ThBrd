@@ -289,20 +289,20 @@ def scrape_stream_production():
             headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
             stream = requests.get(url, timeout=5, verify=False, headers=headers)
             if stream.status_code == 401:
-                print(dt_string,'Failed to autenticate', stream, ' generating new token')
+                print(dt_string,'Failed to authenticate', stream, ' generating new token')
                 ENVOY_TOKEN=token_gen(None)
                 headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
                 stream = requests.get(url, timeout=5, verify=False, headers=headers)
             elif stream.status_code != 200:
-                print(dt_string,'Failed connect to Envoy got ', stream)
+                print(dt_string,'Failed to connect to Envoy, got ', stream)
             else:
                 if is_json_valid(stream.content):
-                    #print(dt_string, 'Json Response:', stream.json())
-                    json_string = json.dumps(stream.json())
-                    client.publish(topic= MQTT_TOPIC , payload= json_string, qos=0 )
-                    if USE_FREEDS: 
-                        json_string_freeds = json.dumps(round(stream.json()['production'][1]['wNow']))
-                        client.publish(topic= MQTT_TOPIC_FREEDS , payload= json_string_freeds, qos=0 )
+                    json_data = stream.json()
+                    json_string = json.dumps(json_data)
+                    client.publish(topic=MQTT_TOPIC, payload=json_string, qos=0)
+                    if USE_FREEDS:
+                        json_string_freeds = json.dumps(round(json_data['production'][0]['wNow']))
+                        client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
                     time.sleep(1)
                 else:
                     print(dt_string, 'Invalid Json Response:', stream.content)
@@ -430,7 +430,7 @@ def main():
         stream_thread = threading.Thread(target=scrape_stream_livedata)
         stream_thread.start()        
     elif envoy_version == 8:
-        stream_thread = threading.Thread(target=scrape_stream_meters)
+        stream_thread = threading.Thread(scrape_stream_production)
         stream_thread.start()
     elif envoy_version == 7:
         stream_thread = threading.Thread(target=scrape_stream_meters)
