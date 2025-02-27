@@ -282,32 +282,57 @@ def emupwGetMobilePasswd(serialNumber,userName,realm=None):
 
 def scrape_stream_production():
     global ENVOY_TOKEN
-    ENVOY_TOKEN=token_gen(ENVOY_TOKEN)
+    ENVOY_TOKEN = token_gen(ENVOY_TOKEN)
+    
     while True:
         try:
             url = 'http://%s/production.json' % ENVOY_HOST
             headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
             stream = requests.get(url, timeout=5, verify=False, headers=headers)
+
             if stream.status_code == 401:
-                print(dt_string,'Failed to autenticate', stream, ' generating new token')
-                ENVOY_TOKEN=token_gen(None)
+                print(dt_string, 'Failed to authenticate', stream, ' generating new token')
+                ENVOY_TOKEN = token_gen(None)
                 headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
                 stream = requests.get(url, timeout=5, verify=False, headers=headers)
+            
             elif stream.status_code != 200:
-                print(dt_string,'Failed connect to Envoy got ', stream)
+                print(dt_string, 'Failed to connect to Envoy, got ', stream)
+
             else:
                 if is_json_valid(stream.content):
-                    #print(dt_string, 'Json Response:', stream.json())
-                    json_string = json.dumps(stream.json())
-                    client.publish(topic= MQTT_TOPIC , payload= json_string, qos=0 )
-                    if USE_FREEDS: 
-                        json_string_freeds = json.dumps(round(stream.json()['production'][0]['wNow']))
-                        client.publish(topic= MQTT_TOPIC_FREEDS , payload= json_string_freeds, qos=0 )
+                    json_data = stream.json()
+                    json_string = json.dumps(json_data)
+                    
+                    # Publiceer de volledige JSON naar MQTT
+                    client.publish(topic=MQTT_TOPIC, payload=json_string, qos=0)
+
+                    # Controleer of 'consumption' aanwezig is
+                    if 'consumption' in json_data and len(json_data['consumption']) > 0:
+                        wNow_value = round(json_data['consumption'][0]['wNow'])
+                        source = "consumption"
+                    
+                    # Als 'consumption' niet bestaat, gebruik 'production'
+                    elif 'production' in json_data and len(json_data['production']) > 0:
+                        wNow_value = round(json_data['production'][0]['wNow'])
+                        source = "production"
+                    
+                    else:
+                        print(dt_string, "No valid 'consumption' or 'production' data found.")
+                        continue  # Ga verder met de volgende iteratie
+
+                    # Publiceer de juiste waarde naar MQTT
+                    json_string_freeds = json.dumps(wNow_value)
+                    client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
+                    print(dt_string, f"Published wNow from {source}: {wNow_value}")
+
                     time.sleep(1)
+
                 else:
-                    print(dt_string, 'Invalid Json Response:', stream.content)
+                    print(dt_string, 'Invalid JSON Response:', stream.content)
+
         except requests.exceptions.RequestException as e:
-            print(dt_string, ' Exception fetching stream data: %s' % e)
+            print(dt_string, 'Exception fetching stream data: %s' % e)
 
 def scrape_stream_livedata():
     global ENVOY_TOKEN
