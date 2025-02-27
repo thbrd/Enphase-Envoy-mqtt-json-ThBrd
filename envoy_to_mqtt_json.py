@@ -280,50 +280,51 @@ def emupwGetMobilePasswd(serialNumber,userName,realm=None):
             password += cc
     return password
 
-def scrape_stream_production():
+def scrape_stream_meters():
     global ENVOY_TOKEN
     ENVOY_TOKEN = token_gen(ENVOY_TOKEN)
+
     while True:
         try:
-            url = 'http://%s/production.json' % ENVOY_HOST
+            url = 'https://%s/ivp/meters/readings' % ENVOY_HOST
+            if DEBUG: print(dt_string, 'Url:', url)
+
             headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
             stream = requests.get(url, timeout=5, verify=False, headers=headers)
-
+            
             if stream.status_code == 401:
                 print(dt_string, 'Failed to authenticate, generating new token')
                 ENVOY_TOKEN = token_gen(None)
                 headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
                 stream = requests.get(url, timeout=5, verify=False, headers=headers)
+            
             elif stream.status_code != 200:
                 print(dt_string, 'Failed to connect to Envoy:', stream.status_code)
+            
             else:
                 if is_json_valid(stream.content):
                     json_response = stream.json()
+                    if DEBUG: print(dt_string, 'Json Response:', json_response)
 
-                    # Default op None zetten
-                    power_value = None
+                    # **Controleer of er minstens 2 elementen zijn in de lijst**
+                    if isinstance(json_response, list) and len(json_response) > 1:
+                        if "activePower" in json_response[1]:
+                            json_string_freeds = json.dumps(round(json_response[1]["activePower"]))
+                            client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
+                            if DEBUG: print(dt_string, 'FREEDS JSON published:', json_string_freeds)
+                        else:
+                            print(dt_string, "activePower ontbreekt in JSON-response[1]")
+                    else:
+                        print(dt_string, "Onvoldoende items in JSON-response, overschakelen naar production")
 
-                    # Probeer eerst de consumption data te pakken
-                    if "consumption" in json_response and len(json_response["consumption"]) > 0:
-                        if "wNow" in json_response["consumption"][0]:
-                            power_value = round(json_response["consumption"][0]["wNow"])
-                    
-                    # Als consumption niet werkt, gebruik production
-                    if power_value is None:
-                        print(dt_string, "Consumption data niet beschikbaar, overschakelen naar Production")
+                        # **Fallback naar Production JSON als Meters JSON faalt**
                         if "production" in json_response and len(json_response["production"]) > 0:
                             if "wNow" in json_response["production"][0]:
-                                power_value = round(json_response["production"][0]["wNow"])
+                                json_string_freeds = json.dumps(round(json_response["production"][0]["wNow"]))
+                                client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
+                                if DEBUG: print(dt_string, 'Fallback naar Production JSON published:', json_string_freeds)
 
-                    # Als er een geldige waarde is gevonden, publiceer het naar MQTT
-                    if power_value is not None:
-                        json_string_freeds = json.dumps(power_value)
-                        client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
-                        if DEBUG: print(dt_string, 'FREEDS JSON published:', json_string_freeds)
-                    else:
-                        print(dt_string, "Geen geldige power waarde gevonden in zowel consumption als production.")
-
-                    # Publiceer de volledige JSON zoals het origineel
+                    # Publiceer volledige JSON zoals origineel
                     json_string = json.dumps(json_response)
                     client.publish(topic=MQTT_TOPIC, payload=json_string, qos=0)
 
@@ -333,6 +334,7 @@ def scrape_stream_production():
 
         except requests.exceptions.RequestException as e:
             print(dt_string, 'Exception fetching stream data:', e)
+
 
 
 def scrape_stream_livedata():
