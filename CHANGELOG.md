@@ -1,3 +1,5 @@
+ v1.0.26 Bugfix target toegevoegd
+
  v1.0.24 Bugfix
  
  v1.0.22 Consumtion changed to production
