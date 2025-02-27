@@ -1,4 +1,6 @@
-v1.0.22 Consumtion and production possible.
+v1.0.26 Consumtion and production possible [Bug Fix]
+
+v1.0.24 Consumtion and production possible.
 
 v1.0.22 Consumtion changed to production
 
