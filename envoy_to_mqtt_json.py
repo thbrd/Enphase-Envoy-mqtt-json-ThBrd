@@ -282,32 +282,42 @@ def emupwGetMobilePasswd(serialNumber,userName,realm=None):
 
 def scrape_stream_production():
     global ENVOY_TOKEN
-    ENVOY_TOKEN=token_gen(ENVOY_TOKEN)
+    ENVOY_TOKEN = token_gen(ENVOY_TOKEN)
     while True:
         try:
             url = 'http://%s/production.json' % ENVOY_HOST
             headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
             stream = requests.get(url, timeout=5, verify=False, headers=headers)
+            
             if stream.status_code == 401:
-                print(dt_string,'Failed to authenticate', stream, ' generating new token')
-                ENVOY_TOKEN=token_gen(None)
+                print(dt_string, 'Failed to authenticate', stream, ' generating new token')
+                ENVOY_TOKEN = token_gen(None)
                 headers = {"Authorization": "Bearer " + ENVOY_TOKEN}
                 stream = requests.get(url, timeout=5, verify=False, headers=headers)
+            
             elif stream.status_code != 200:
-                print(dt_string,'Failed to connect to Envoy, got ', stream)
+                print(dt_string, 'Failed to connect to Envoy, got ', stream)
+            
             else:
                 if is_json_valid(stream.content):
                     json_data = stream.json()
                     json_string = json.dumps(json_data)
+                    
+                    # Publiseer de volledige JSON naar MQTT
                     client.publish(topic=MQTT_TOPIC, payload=json_string, qos=0)
-                    if USE_FREEDS:
-                        json_string_freeds = json.dumps(round(json_data['production'][0]['wNow']))
+                    
+                    # Haal de waarde van 'wNow' op en publiceer deze apart naar MQTT
+                    if 'production' in json_data and len(json_data['production']) > 0:
+                        wNow_value = round(json_data['production'][0]['wNow'])
+                        json_string_freeds = json.dumps(wNow_value)
                         client.publish(topic=MQTT_TOPIC_FREEDS, payload=json_string_freeds, qos=0)
+                        print(dt_string, 'Published wNow:', wNow_value)
+                    
                     time.sleep(1)
                 else:
-                    print(dt_string, 'Invalid Json Response:', stream.content)
+                    print(dt_string, 'Invalid JSON Response:', stream.content)
         except requests.exceptions.RequestException as e:
-            print(dt_string, ' Exception fetching stream data: %s' % e)
+            print(dt_string, 'Exception fetching stream data: %s' % e)
 
 def scrape_stream_livedata():
     global ENVOY_TOKEN
