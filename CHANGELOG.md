@@ -1,3 +1,5 @@
+ v1.0.26.2 Check voor consumption of production toegevoegd. 
+
  v1.0.26 Bugfix target toegevoegd
 
  v1.0.24 Bugfix
