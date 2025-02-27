@@ -430,7 +430,7 @@ def main():
         stream_thread = threading.Thread(target=scrape_stream_livedata)
         stream_thread.start()        
     elif envoy_version == 8:
-        stream_thread = threading.Thread(target=scrape_stream_meters)
+        stream_thread = threading.Thread(target=scrape_stream_production)
         stream_thread.start()
     elif envoy_version == 7:
         stream_thread = threading.Thread(target=scrape_stream_meters)
