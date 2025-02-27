@@ -379,8 +379,8 @@ def scrape_stream_meters():
                     json_string = json.dumps(stream.json())
                     client.publish(topic= MQTT_TOPIC , payload= json_string, qos=0 )
                     if USE_FREEDS: 
-                        json_string_freeds = json.dumps(round(stream.json()[1]["activePower"]))
-                        if DEBUG: print(dt_string, 'Json freeds:', stream.json()[1]["activePower"])
+                        json_string_freeds = json.dumps(round(stream.json()[1]["wNow"]))
+                        if DEBUG: print(dt_string, 'Json freeds:', stream.json()[1]["wNow"])
                         client.publish(topic= MQTT_TOPIC_FREEDS , payload= json_string_freeds, qos=0 )
                     time.sleep(0.6)
                 else:
