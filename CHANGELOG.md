@@ -1,5 +1,3 @@
-v1.0.24 Consumtion changed to production [Bug Fix]
-
 v1.0.22 Consumtion changed to production
 
 v1.0.21 Own Fork active power changed to wnow
